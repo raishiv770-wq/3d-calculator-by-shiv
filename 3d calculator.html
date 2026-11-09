@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cyber Mini Calc</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 20%, #15102a 0%, #080612 100%);
+      font-family: 'Outfit', sans-serif;
+      overflow: hidden;
+      perspective: 1000px;
+    }
+
+    /* Ambient Background Orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.5;
+      z-index: 0;
+      animation: floatOrb 8s ease-in-out infinite alternate;
+    }
+    .orb-1 {
+      width: 260px;
+      height: 260px;
+      background: #ff007f;
+      top: 15%;
+      left: 20%;
+    }
+    .orb-2 {
+      width: 280px;
+      height: 280px;
+      background: #7928ca;
+      bottom: 15%;
+      right: 20%;
+      animation-duration: 10s;
+      animation-delay: -3s;
+    }
+    .orb-3 {
+      width: 200px;
+      height: 200px;
+      background: #00f2fe;
+      bottom: 40%;
+      left: 35%;
+      animation-duration: 7s;
+      animation-delay: -5s;
+    }
+
+    @keyframes floatOrb {
+      0% { transform: translate(0, 0) scale(1); }
+      50% { transform: translate(30px, 40px) scale(1.15); }
+      100% { transform: translate(-25px, -30px) scale(0.9); }
+    }
+
+    /* Floating Canvas for Click Sparks */
+    #sparkCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Calculator Wrapper with 3D Tilt */
+    .calculator-card {
+      position: relative;
+      z-index: 10;
+      width: 270px;
+      padding: 18px;
+      background: rgba(18, 14, 38, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 28px;
+      box-shadow: 
+        0 20px 50px rgba(0, 0, 0, 0.6),
+        0 0 40px rgba(121, 40, 202, 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out, box-shadow 0.3s ease;
+      cursor: default;
+    }
+
+    /* Animated Rainbow Glow Border */
+    .calculator-card::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 30px;
+      padding: 2px;
+      background: linear-gradient(135deg, #ff007f, #7928ca, #00f2fe, #ff007f);
+      background-size: 300% 300%;
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: borderGlow 6s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes borderGlow {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Header & Badge */
+    .calc-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      font-weight: 800;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .badge {
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: rgba(0, 242, 254, 0.15);
+      color: #00f2fe;
+      font-size: 9px;
+      font-family: 'JetBrains Mono', monospace;
+      border: 1px solid rgba(0, 242, 254, 0.3);
+      animation: pulseBadge 2s ease-in-out infinite;
+    }
+
+    @keyframes pulseBadge {
+      0%, 100% { box-shadow: 0 0 6px rgba(0, 242, 254, 0.2); }
+      50% { box-shadow: 0 0 14px rgba(0, 242, 254, 0.6); }
+    }
+
+    /* Display Screen */
+    .display {
+      background: rgba(8, 6, 18, 0.75);
+      border-radius: 16px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      text-align: right;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .history {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      min-height: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.2s ease;
+    }
+
+    .current-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 26px;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .shake {
+      animation: errorShake 0.4s ease-in-out;
+    }
+    @keyframes errorShake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    /* Grid of Buttons */
+    .keypad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 9px;
+    }
+
+    /* Button Style & Physics Animation */
+    .btn {
+      position: relative;
+      height: 48px;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Outfit', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(5px);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      outline: none;
+      transition: 
+        transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background 0.2s ease,
+        box-shadow 0.2s ease;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .btn:hover {
+      transform: translateY(-2px) scale(1.05);
+      background: rgba(255, 255, 255, 0.14);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn:active {
+      transform: translateY(2px) scale(0.92);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Special Button Types */
+    .btn-action {
+      background: rgba(255, 0, 127, 0.18);
+      color: #ff3399;
+      font-weight: 800;
+      border: 1px solid rgba(255, 0, 127, 0.3);
+    }
+    .btn-action:hover {
+      background: rgba(255, 0, 127, 0.32);
+      box-shadow: 0 0 15px rgba(255, 0, 127, 0.4);
+    }
+
+    .btn-op {
+      background: rgba(121, 40, 202, 0.25);
+      color: #c48dfa;
+      font-size: 18px;
+      font-weight: 700;
+      border: 1px solid rgba(121, 40, 202, 0.4);
+    }
+    .btn-op:hover {
+      background: rgba(121, 40, 202, 0.45);
+      box-shadow: 0 0 16px rgba(121, 40, 202, 0.5);
+    }
+
+    .btn-equal {
+      background: linear-gradient(135deg, #00f2fe, #4facfe);
+      color: #04091e;
+      font-weight: 800;
+      font-size: 20px;
+      box-shadow: 0 4px 18px rgba(0, 242, 254, 0.4);
+    }
+    .btn-equal:hover {
+      background: linear-gradient(135deg, #2df5ff, #6cb6ff);
+      box-shadow: 0 0 22px rgba(0, 242, 254, 0.7);
+    }
+
+    .btn-zero {
+      grid-column: span 2;
+    }
+
+    /* Keyboard indicator */
+    .hint {
+      margin-top: 15px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.35);
+      letter-spacing: 0.5px;
+      text-align: center;
+      z-index: 10;
+    }
+    .hint kbd {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #00f2fe;
+    }
+  </style>
+</head>
+<body>
+  <!-- Ambient Blur Lights -->
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- Spark Particle Canvas -->
+  <canvas id="sparkCanvas"></canvas>
+
+  <!-- Interactive 3D Calculator Card -->
+  <div class="calculator-card" id="calcCard">
+    <div class="calc-header">
+      <span>⚡ Quantum</span>
+      <span class="badge">V1.0</span>
+    </div>
+
+    <div class="display" id="displayBox">
+      <div class="history" id="history"></div>
+      <div class="current-value" id="current">0</div>
+    </div>
+
+    <div class="keypad">
+      <button class="btn btn-action" data-action="clear">AC</button>
+      <button class="btn btn-action" data-action="delete">DEL</button>
+      <button class="btn btn-op" data-action="op" data-val="%">%</button>
+      <button class="btn btn-op" data-action="op" data-val="/">÷</button>
+
+      <button class="btn" data-val="7">7</button>
+      <button class="btn" data-val="8">8</button>
+      <button class="btn" data-val="9">9</button>
+      <button class="btn btn-op" data-action="op" data-val="*">×</button>
+
+      <button class="btn" data-val="4">4</button>
+      <button class="btn" data-val="5">5</button>
+      <button class="btn" data-val="6">6</button>
+      <button class="btn btn-op" data-action="op" data-val="-">−</button>
+
+      <button class="btn" data-val="1">1</button>
+      <button class="btn" data-val="2">2</button>
+      <button class="btn" data-val="3">3</button>
+      <button class="btn btn-op" data-action="op" data-val="+">+</button>
+
+      <button class="btn btn-zero" data-val="0">0</button>
+      <button class="btn" data-val=".">.</button>
+      <button class="btn btn-equal" data-action="calculate">=</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    Supports keyboard: <kbd>0-9</kbd> <kbd>+-*/</kbd> <kbd>Enter</kbd> <kbd>Esc</kbd>
+  </div>
+
+  <script>
+    // --- Audio Synthesis (High-tech Click Sounds) ---
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function playBeep(freq = 600, duration = 0.04, type = 'sine') {
+      try {
+        if (!audioCtx) audioCtx = new AudioContext();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + duration);
+        
+        gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    // --- Particle Spark System ---
+    const canvas = document.getElementById('sparkCanvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    class Particle {
+      constructor(x, y, color) {
+        this.x = x;
+        this.y = y;
+        this.color = color;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 5 + 2;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.radius = Math.random() * 2.5 + 1;
+        this.alpha = 1;
+        this.decay = Math.random() * 0.04 + 0.02;
+      }
+      update() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.vx *= 0.94;
+        this.vy *= 0.94;
+        this.alpha -= this.decay;
+      }
+      draw() {
+        ctx.save();
+        ctx.globalAlpha = Math.max(this.alpha, 0);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 8;
+        ctx.shadowColor = this.color;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    function createSparks(x, y, color = '#00f2fe') {
+      const count = 12;
+      for (let i = 0; i < count; i++) {
+        particles.push(new Particle(x, y, color));
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.update();
+        p.draw();
+        if (p.alpha <= 0) particles.splice(i, 1);
+      }
+      requestAnimationFrame(animateParticles);
+    }
+    animateParticles();
+
+    // --- 3D Dynamic Card Tilt Effect ---
+    const card = document.getElementById('calcCard');
+    document.addEventListener('mousemove', (e) => {
+      const rect = card.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      
+      const mouseX = e.clientX - centerX;
+      const mouseY = e.clientY - centerY;
+      
+      // Calculate smooth tilt angles
+      const rotateX = -(mouseY / 25).toFixed(2);
+      const rotateY = (mouseX / 25).toFixed(2);
+      
+      card.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+    });
+
+    document.addEventListener('mouseleave', () => {
+      card.style.transform = `rotateX(0deg) rotateY(0deg)`;
+    });
+
+    // --- Calculator Engine ---
+    let currentInput = '0';
+    let previousInput = '';
+    let operator = null;
+    let shouldResetDisplay = false;
+
+    const currentDisplay = document.getElementById('current');
+    const historyDisplay = document.getElementById('history');
+    const displayBox = document.getElementById('displayBox');
+
+    function updateDisplay(animate = true) {
+      currentDisplay.innerText = currentInput;
+      if (operator) {
+        historyDisplay.innerText = `${previousInput} ${operator}`;
+      } else {
+        historyDisplay.innerText = '';
+      }
+
+      if (animate) {
+        currentDisplay.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+          currentDisplay.style.transform = 'scale(1)';
+        }, 120);
+      }
+    }
+
+    function triggerShake() {
+      playBeep(200, 0.15, 'sawtooth');
+      displayBox.classList.remove('shake');
+      void displayBox.offsetWidth; // Trigger reflow
+      displayBox.classList.add('shake');
+    }
+
+    function appendNumber(num) {
+      playBeep(800, 0.03, 'sine');
+      if (shouldResetDisplay) {
+        currentInput = '';
+        shouldResetDisplay = false;
+      }
+      if (num === '.' && currentInput.includes('.')) return;
+      if (currentInput === '0' && num !== '.') {
+        currentInput = num;
+      } else {
+        if (currentInput.length >= 10) return; // Prevent overflow
+        currentInput += num;
+      }
+      updateDisplay();
+    }
+
+    function chooseOperator(op) {
+      playBeep(1000, 0.04, 'triangle');
+      if (currentInput === '' && op === '-') {
+        currentInput = '-';
+        updateDisplay();
+        return;
+      }
+      if (operator && !shouldResetDisplay) {
+        calculate();
+      }
+      operator = op;
+      previousInput = currentInput;
+      shouldResetDisplay = true;
+      updateDisplay(false);
+    }
+
+    function calculate() {
+      if (!operator || shouldResetDisplay) return;
+      playBeep(1400, 0.08, 'square');
+
+      let result;
+      const prev = parseFloat(previousInput);
+      const curr = parseFloat(currentInput);
+
+      if (isNaN(prev) || isNaN(curr)) return;
+
+      switch (operator) {
+        case '+': result = prev + curr; break;
+        case '-': result = prev - curr; break;
+        case '*': result = prev * curr; break;
+        case '/':
+          if (curr === 0) {
+            triggerShake();
+            currentInput = 'Error';
+            operator = null;
+            shouldResetDisplay = true;
+            updateDisplay();
+            return;
+          }
+          result = prev / curr;
+          break;
+        case '%': result = (prev * curr) / 100; break;
+        default: return;
+      }
+
+      // Round to 6 decimals max to avoid floating point bugs
+      result = Math.round(result * 1000000) / 1000000;
+      currentInput = result.toString();
+      operator = null;
+      shouldResetDisplay = true;
+      updateDisplay();
+    }
+
+    function clearAll() {
+      playBeep(450, 0.05, 'sine');
+      currentInput = '0';
+      previousInput = '';
+      operator = null;
+      shouldResetDisplay = false;
+      updateDisplay();
+    }
+
+    function deleteDigit() {
+      playBeep(500, 0.03, 'sine');
+      if (shouldResetDisplay) return;
+      currentInput = currentInput.slice(0, -1);
+      if (currentInput === '' || currentInput === '-') currentInput = '0';
+      updateDisplay();
+    }
+
+    // --- Click & Particle Event Binding ---
+    document.querySelectorAll('.btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const rect = btn.getBoundingClientRect();
+        const clickX = rect.left + rect.width / 2;
+        const clickY = rect.top + rect.height / 2;
+
+        let sparkColor = '#00f2fe';
+        if (btn.classList.contains('btn-action')) sparkColor = '#ff007f';
+        else if (btn.classList.contains('btn-op')) sparkColor = '#7928ca';
+        else if (btn.classList.contains('btn-equal')) sparkColor = '#00f2fe';
+
+        createSparks(clickX, clickY, sparkColor);
+
+        const action = btn.dataset.action;
+        const val = btn.dataset.val;
+
+        if (!action && val) appendNumber(val);
+        else if (action === 'op') chooseOperator(val);
+        else if (action === 'calculate') calculate();
+        else if (action === 'clear') clearAll();
+        else if (action === 'delete') deleteDigit();
+      });
+    });
+
+    // --- Keyboard Support ---
+    window.addEventListener('keydown', (e) => {
+      if (e.key >= '0' && e.key <= '9') appendNumber(e.key);
+      if (e.key === '.') appendNumber('.');
+      if (['+', '-', '*', '/'].includes(e.key)) chooseOperator(e.key);
+      if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calculate(); }
+      if (e.key === 'Backspace') deleteDigit();
+      if (e.key === 'Escape') clearAll();
+    });
+  </script>
+</body>
+</html>
